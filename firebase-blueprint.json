@@ -1,0 +1,27 @@
+{
+  "entities": {
+    "Participant": {
+      "title": "Participant",
+      "description": "Art fest student participant record",
+      "properties": {
+        "studentName": { "type": "string" },
+        "class": { "type": "string" },
+        "category": { "type": "string", "enum": ["Sub Junior", "Junior", "Senior"] },
+        "gender": { "type": "string", "enum": ["Boys", "Girls"] },
+        "competitionName": { "type": "string" },
+        "team": { "type": "string", "enum": ["Team A", "Team B"] },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["studentName", "class", "category", "gender", "competitionName", "team"]
+    },
+    "User": {
+      "title": "User",
+      "description": "User profile and role in the system",
+      "properties": {
+        "email": { "type": "string" },
+        "role": { "type": "string", "enum": ["admin", "team_a", "team_b"] }
+      },
+      "required": ["email", "role"]
+    }
+  }
+}

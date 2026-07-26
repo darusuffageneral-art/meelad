@@ -1,0 +1,6 @@
+{
+  "name": "SPRING Meelad Art Fest Management System",
+  "description": "Official Spring Meelad Art Fest competition platform for Kammusufi Suni Centre Madrasa, Theyyottuchira. Features Cairo and Cordoba team rosters, password-protected portals, participant registration, category filtering, and PDF exports.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
