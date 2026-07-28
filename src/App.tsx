@@ -6,10 +6,12 @@ import { TeamPortal } from './components/TeamPortal';
 import { AdminPortal } from './components/AdminPortal';
 import { NamedStagePortal } from './components/NamedStagePortal';
 import { motion, AnimatePresence } from 'motion/react';
+import { useSettings } from './context/SettingsContext';
 
 export default function App() {
   const [currentView, setCurrentView] = useState<ViewMode>('landing');
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState<boolean>(false);
+  const settings = useSettings();
 
   const handleNavigate = (view: ViewMode) => {
     setCurrentView(view);
@@ -73,7 +75,7 @@ export default function App() {
               exit={{ opacity: 0, x: -20 }}
               transition={{ duration: 0.3 }}
             >
-              <TeamPortal team="Cairo" onBack={() => handleNavigate('landing')} />
+              <TeamPortal team={settings.teamAName} teamId="Cairo" onBack={() => handleNavigate('landing')} />
             </motion.div>
           )}
 
@@ -85,7 +87,7 @@ export default function App() {
               exit={{ opacity: 0, x: -20 }}
               transition={{ duration: 0.3 }}
             >
-              <TeamPortal team="Cordoba" onBack={() => handleNavigate('landing')} />
+              <TeamPortal team={settings.teamBName} teamId="Cordoba" onBack={() => handleNavigate('landing')} />
             </motion.div>
           )}
 
@@ -111,7 +113,7 @@ export default function App() {
       <footer className="bg-black border-t border-[#0057FF]/20 py-6 px-4 text-center text-xs text-slate-500">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
           <p className="font-semibold text-slate-400">
-            SPRING MEELAD ART FEST &copy; {new Date().getFullYear()} — All Rights Reserved
+            {settings.appName.toUpperCase()} &copy; {new Date().getFullYear()} — All Rights Reserved
           </p>
           <div className="flex items-center gap-4 text-[11px] text-[#00A8FF]/70">
             <span>Powered by Firebase Firestore</span>

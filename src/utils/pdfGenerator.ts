@@ -8,10 +8,11 @@ export interface PdfReportOptions {
   gender: Gender | 'All';
   competitionName: string;
   participants: Participant[];
+  appName?: string;
 }
 
 export const generatePdfReport = (options: PdfReportOptions) => {
-  const { team, category, gender, competitionName, participants } = options;
+  const { team, category, gender, competitionName, participants, appName = 'SPRING MEELAD ART FEST' } = options;
 
   // Create new PDF document
   const doc = new jsPDF({
@@ -49,7 +50,7 @@ export const generatePdfReport = (options: PdfReportOptions) => {
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(18);
   doc.setTextColor(255, 255, 255);
-  doc.text('SPRING MEELAD ART FEST', 38, 19);
+  doc.text(appName, 38, 19);
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9.5);
@@ -104,15 +105,24 @@ export const generatePdfReport = (options: PdfReportOptions) => {
   doc.text(`${participants.length}`, 182, startY + 16);
 
   // 5. Student List Table
-  const tableData = participants.map((p, index) => [
-    (index + 1).toString(),
-    p.studentName,
-    p.class,
-    p.team,
-    p.category,
-    p.gender,
-    p.competitionName
-  ]);
+  const tableData = participants.map((p, index) => {
+    const assigned = Array.isArray(p.assignedCompetitions) && p.assignedCompetitions.length > 0
+      ? p.assignedCompetitions
+      : p.competitionName ? [p.competitionName] : [];
+    const compText = assigned.length > 0
+      ? assigned.map((c, i) => `${i + 1}. ${c}`).join('\n')
+      : '-';
+
+    return [
+      (index + 1).toString(),
+      p.studentName,
+      p.class,
+      p.team,
+      p.category,
+      p.gender,
+      compText
+    ];
+  });
 
   autoTable(doc, {
     startY: startY + 28,
@@ -187,7 +197,7 @@ export const generatePdfReport = (options: PdfReportOptions) => {
   doc.save(filename);
 };
 
-export const generateCompetitionPrintSheet = (competitionName: string, participantList: any[]) => {
+export const generateCompetitionPrintSheet = (competitionName: string, participantList: any[], appName = 'SPRING MEELAD ART FEST') => {
   // Initialize A4 Portrait PDF
   const doc = new jsPDF('p', 'mm', 'a4');
 
@@ -197,7 +207,7 @@ export const generateCompetitionPrintSheet = (competitionName: string, participa
   doc.text('KAMMUSUFI SUNI CENTRE MADRASA', 105, 15, { align: 'center' });
 
   doc.setFontSize(14);
-  doc.text('SPRING MEELAD ART FEST - THEYYOTTUCHIRA', 105, 23, { align: 'center' });
+  doc.text(`${appName} - THEYYOTTUCHIRA`, 105, 23, { align: 'center' });
 
   doc.setFontSize(12);
   doc.setFont('helvetica', 'normal');

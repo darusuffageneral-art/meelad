@@ -1,6 +1,6 @@
 export type Category = 'Sub Junior' | 'Junior' | 'Senior';
 export type Gender = 'Boys' | 'Girls';
-export type Team = 'Cairo' | 'Cordoba';
+export type Team = string; // Using string to allow dynamic team names
 
 export interface Participant {
   id: string;

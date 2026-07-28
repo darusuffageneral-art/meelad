@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Participant, Program } from '../types';
-import { Trophy, Plus, X, AlertCircle, Check, Loader2 } from 'lucide-react';
-import { PlusCircle } from 'lucide-react';
+import { Trophy, X, AlertCircle, Loader2 } from 'lucide-react';
 
 interface AssignCompetitionCellProps {
   participant: Participant;
@@ -35,9 +34,14 @@ export const AssignCompetitionCell: React.FC<AssignCompetitionCellProps> = ({
   // Filter competitions matching student's exact category & gender eligibility
   const availablePrograms = allPrograms.filter((p) => {
     // Category match
-    const categoryMatch = !p.category || p.category === 'All' || p.category === participant.category;
+    const pCat = (p.category || 'All').trim().toLowerCase();
+    const partCat = (participant.category || '').trim().toLowerCase();
+    const categoryMatch = pCat === 'all' || pCat === partCat;
+
     // Gender match
-    const genderMatch = !p.gender || p.gender === 'All' || p.gender === participant.gender;
+    const pGen = (p.gender || 'All').trim().toLowerCase();
+    const partGen = (participant.gender || '').trim().toLowerCase();
+    const genderMatch = pGen === 'all' || pGen === partGen;
 
     return categoryMatch && genderMatch;
   });
@@ -77,29 +81,36 @@ export const AssignCompetitionCell: React.FC<AssignCompetitionCellProps> = ({
   return (
     <div className="space-y-2 py-1">
       {/* List of Assigned Badges */}
-      <div className="flex flex-wrap items-center gap-1.5">
+      <div className="flex flex-col gap-2">
         {assignedList.length === 0 ? (
-          <span className="text-[11px] text-slate-500 italic">No competition assigned</span>
+          <div className="text-[11px] text-slate-500 italic px-2 py-1">No competition assigned</div>
         ) : (
-          assignedList.map((comp) => (
-            <span
+          assignedList.map((comp, idx) => (
+            <div
               key={comp}
-              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#0057FF]/25 border border-[#00A8FF]/40 text-[#00A8FF] text-[11px] font-bold shadow-sm"
+              className="flex items-center justify-between p-3 rounded-xl bg-gradient-to-r from-[#001F3F] to-transparent border-l-2 border-[#00A8FF] shadow-sm group"
             >
-              <Trophy className="w-3 h-3 text-amber-400 shrink-0" />
-              <span>{comp}</span>
+              <div className="flex items-center gap-3">
+                <div className="w-6 h-6 rounded-full bg-[#0057FF]/20 flex items-center justify-center font-mono text-[10px] text-[#00A8FF] font-bold">
+                  {idx + 1}
+                </div>
+                <div className="flex items-center gap-2">
+                  <Trophy className="w-4 h-4 text-amber-400 shrink-0" />
+                  <span className="text-sm font-bold text-white tracking-wide">{comp}</span>
+                </div>
+              </div>
               {!isReadOnly && (
                 <button
                   type="button"
                   onClick={() => handleRemoveClick(comp)}
                   disabled={loading}
-                  className="ml-1 text-slate-400 hover:text-rose-400 cursor-pointer p-0.5 rounded hover:bg-rose-950/40 transition-colors"
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-950/40 cursor-pointer transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
                   title="Remove this assigned competition"
                 >
-                  <X className="w-3 h-3" />
+                  <X className="w-4 h-4" />
                 </button>
               )}
-            </span>
+            </div>
           ))
         )}
       </div>

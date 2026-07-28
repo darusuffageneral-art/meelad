@@ -15,7 +15,10 @@ import {
   deleteProgram
 } from '../services/programService';
 import { AssignCompetitionCell } from './AssignCompetitionCell';
+import { ParticipantProfileModal } from './ParticipantProfileModal';
 import { generatePdfReport, generateCompetitionPrintSheet } from '../utils/pdfGenerator';
+import { updateSettings } from '../services/settingsService';
+import { useSettings } from '../context/SettingsContext';
 import {
   ShieldCheck,
   UserPlus,
@@ -56,27 +59,31 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   const [loginPassword, setLoginPassword] = useState('');
   const [loginError, setLoginError] = useState('');
 
+  const settings = useSettings();
+  
   // Dashboard Tab State
-  const [activeTab, setActiveTab] = useState<'add' | 'roster' | 'programs' | 'pdf'>('add');
+  const [activeTab, setActiveTab] = useState<'roster' | 'programs' | 'pdf' | 'settings'>('roster');
 
-  // Form State for Add Participant
-  const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
-  const [studentName, setStudentName] = useState('');
-  const [studentClass, setStudentClass] = useState('Class 5');
-  const [category, setCategory] = useState<Category>('Sub Junior');
-  const [gender, setGender] = useState<Gender>('Boys');
-  const [competitionName, setCompetitionName] = useState('');
-  const [customCompInput, setCustomCompInput] = useState('');
-
-  const [saving, setSaving] = useState(false);
-  const [successMessage, setSuccessMessage] = useState('');
-  const [errorMessage, setErrorMessage] = useState('');
+  // Settings State
+  const [editingAppName, setEditingAppName] = useState(settings.appName);
+  const [editingTeamA, setEditingTeamA] = useState(settings.teamAName);
+  const [editingTeamB, setEditingTeamB] = useState(settings.teamBName);
+  const [settingsSaving, setSettingsSaving] = useState(false);
+  const [settingsSuccess, setSettingsSuccess] = useState('');
+  
+  // Update local settings state when global settings change
+  useEffect(() => {
+    setEditingAppName(settings.appName);
+    setEditingTeamA(settings.teamAName);
+    setEditingTeamB(settings.teamBName);
+  }, [settings]);
 
   // Roster / Manage State
   const [allParticipants, setAllParticipants] = useState<Participant[]>([]);
   const [rosterTeamFilter, setRosterTeamFilter] = useState<Team | 'All'>('All');
   const [rosterCategoryFilter, setRosterCategoryFilter] = useState<Category | 'All'>('All');
   const [rosterSearch, setRosterSearch] = useState('');
+  const [selectedProfileParticipant, setSelectedProfileParticipant] = useState<Participant | null>(null);
 
   // Programs Management State
   const [programsList, setProgramsList] = useState<Program[]>([]);
@@ -90,6 +97,9 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
   // Edit Modal State
   const [editingParticipant, setEditingParticipant] = useState<Participant | null>(null);
+
+  // Accordion state
+  const [expandedStudentId, setExpandedStudentId] = useState<string | null>(null);
 
   // PDF Generator States
   const [pdfTeam, setPdfTeam] = useState<Team | 'All'>('All');
@@ -140,53 +150,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     onLoginSuccess();
   };
 
-  // Handle Adding Participant
-  const handleSaveParticipant = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSuccessMessage('');
-    setErrorMessage('');
 
-    if (!selectedTeam) {
-      setErrorMessage('Please select a Team (Team A or Team B) first.');
-      return;
-    }
-
-    if (!studentName.trim()) {
-      setErrorMessage('Please enter Student Name.');
-      return;
-    }
-
-    const finalComp = competitionName === 'custom' ? customCompInput.trim() : competitionName.trim();
-    if (!finalComp) {
-      setErrorMessage('Please select or specify a Competition Name.');
-      return;
-    }
-
-    setSaving(true);
-    try {
-      await addParticipant({
-        studentName: studentName.trim(),
-        class: studentClass.trim(),
-        category,
-        gender,
-        competitionName: finalComp,
-        team: selectedTeam
-      });
-
-      setSuccessMessage(
-        `Participant "${studentName.trim()}" saved successfully! Student will appear in ${selectedTeam} Portal.`
-      );
-
-      // Reset form
-      setStudentName('');
-      setCompetitionName('');
-      setCustomCompInput('');
-    } catch (err) {
-      setErrorMessage('Failed to save participant. Please try again.');
-    } finally {
-      setSaving(false);
-    }
-  };
 
   // Handle Deleting Participant
   const handleDelete = async (id: string, name: string) => {
@@ -225,11 +189,32 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     setSeeding(true);
     try {
       const added = await seedSampleData();
-      alert(`Successfully added ${added} sample participants across Cairo and Cordoba!`);
+      alert(`Successfully added ${added} sample participants across teams!`);
     } catch (err) {
       alert('Error adding sample data.');
     } finally {
       setSeeding(false);
+    }
+  };
+
+  // Handle Update Settings
+  const handleUpdateSettings = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSettingsSaving(true);
+    setSettingsSuccess('');
+    
+    try {
+      await updateSettings({
+        appName: editingAppName,
+        teamAName: editingTeamA,
+        teamBName: editingTeamB
+      });
+      setSettingsSuccess('App names updated successfully!');
+      setTimeout(() => setSettingsSuccess(''), 3000);
+    } catch (err) {
+      alert('Failed to update settings.');
+    } finally {
+      setSettingsSaving(false);
     }
   };
 
@@ -248,7 +233,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
       category: pdfCategory,
       gender: pdfGender,
       competitionName: pdfCompetition === 'All' ? '' : pdfCompetition,
-      participants: filtered
+      participants: filtered,
+      appName: settings.appName
     });
   };
 
@@ -273,7 +259,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     const listWithCodeLetters = filtered.map((p) => {
       let code = p.codeLetter;
       if (!code) {
-        if (p.team === 'Cairo') {
+        if (p.team === settings.teamAName || p.team === 'Cairo') {
           code = `C-${cairoIndex < 10 ? '0' : ''}${cairoIndex}`;
           cairoIndex++;
         } else {
@@ -287,7 +273,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
       };
     });
 
-    generateCompetitionPrintSheet(compName, listWithCodeLetters);
+    generateCompetitionPrintSheet(compName, listWithCodeLetters, settings.appName);
   };
 
   // Handle Adding New Program
@@ -486,8 +472,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     return true;
   });
 
-  const cairoCount = allParticipants.filter((p) => p.team === 'Cairo').length;
-  const cordobaCount = allParticipants.filter((p) => p.team === 'Cordoba').length;
+  const cairoCount = allParticipants.filter((p) => p.team === settings.teamAName || p.team === 'Cairo').length;
+  const cordobaCount = allParticipants.filter((p) => p.team === settings.teamBName || p.team === 'Cordoba').length;
 
   // -------------------------------------------------------------
   // LOGGED IN ADMIN DASHBOARD
@@ -543,11 +529,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
             <p className="text-3xl font-black text-white mt-1">{allParticipants.length}</p>
           </div>
           <div className="p-4 rounded-2xl bg-[#001F3F]/40 border border-[#0057FF]/30 backdrop-blur-xl">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Cairo Students</p>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{settings.teamAName} Students</p>
             <p className="text-3xl font-black text-[#00A8FF] mt-1">{cairoCount}</p>
           </div>
           <div className="p-4 rounded-2xl bg-[#001F3F]/40 border border-[#0057FF]/30 backdrop-blur-xl">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Cordoba Students</p>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{settings.teamBName} Students</p>
             <p className="text-3xl font-black text-[#00A8FF] mt-1">{cordobaCount}</p>
           </div>
           <div className="p-4 rounded-2xl bg-[#001F3F]/40 border border-[#0057FF]/30 backdrop-blur-xl">
@@ -561,18 +547,6 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
         {/* Dashboard Navigation Tabs */}
         <div className="flex flex-wrap items-center gap-2 p-1.5 bg-[#001F3F]/60 border border-[#0057FF]/40 rounded-2xl backdrop-blur-xl mb-8 max-w-4xl">
-          <button
-            onClick={() => setActiveTab('add')}
-            className={`flex-1 min-w-[130px] py-2.5 px-3 rounded-xl text-xs font-extrabold uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-2 ${
-              activeTab === 'add'
-                ? 'bg-gradient-to-r from-[#0057FF] to-[#00A8FF] text-white shadow-lg shadow-[#0057FF]/40'
-                : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            <UserPlus className="w-4 h-4" />
-            <span>Add Participant</span>
-          </button>
-
           <button
             onClick={() => setActiveTab('roster')}
             className={`flex-1 min-w-[130px] py-2.5 px-3 rounded-xl text-xs font-extrabold uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-2 ${
@@ -608,220 +582,19 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
             <Printer className="w-4 h-4" />
             <span>PDF Reports</span>
           </button>
-        </div>
-
-        {/* TAB 1: ADD PARTICIPANT FORM */}
-        {activeTab === 'add' && (
-          <motion.div
-            initial={{ opacity: 0, y: 15 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3 }}
-            className="p-6 md:p-8 rounded-3xl bg-[#001F3F]/30 border border-[#0057FF]/40 backdrop-blur-2xl shadow-2xl max-w-3xl mx-auto"
+          
+          <button
+            onClick={() => setActiveTab('settings')}
+            className={`flex-1 min-w-[130px] py-2.5 px-3 rounded-xl text-xs font-extrabold uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-2 ${
+              activeTab === 'settings'
+                ? 'bg-gradient-to-r from-[#0057FF] to-[#00A8FF] text-white shadow-lg shadow-[#0057FF]/40'
+                : 'text-slate-400 hover:text-white'
+            }`}
           >
-            <div className="flex items-center gap-3 mb-6 pb-4 border-b border-[#0057FF]/30">
-              <div className="p-2.5 rounded-xl bg-[#0057FF]/30 text-[#00A8FF]">
-                <UserPlus className="w-6 h-6" />
-              </div>
-              <div>
-                <h3 className="text-xl font-bold text-white uppercase">ADD NEW PARTICIPANT</h3>
-                <p className="text-xs text-slate-400">
-                  Select Cairo or Cordoba to assign student to their respective portal
-                </p>
-              </div>
-            </div>
-
-            {/* Notifications */}
-            {successMessage && (
-              <div className="mb-6 p-4 rounded-2xl bg-emerald-950/60 border border-emerald-500/40 text-emerald-300 text-xs flex items-center gap-3">
-                <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
-                <span className="font-semibold">{successMessage}</span>
-              </div>
-            )}
-
-            {errorMessage && (
-              <div className="mb-6 p-4 rounded-2xl bg-rose-950/60 border border-rose-500/40 text-rose-300 text-xs flex items-center gap-3">
-                <AlertCircle className="w-5 h-5 text-rose-400 shrink-0" />
-                <span className="font-semibold">{errorMessage}</span>
-              </div>
-            )}
-
-            <form onSubmit={handleSaveParticipant} className="space-y-6">
-              {/* STEP 1: SELECT TEAM */}
-              <div>
-                <label className="block text-xs font-black text-[#00A8FF] uppercase tracking-wider mb-2">
-                  1. Select Team <span className="text-rose-400">*</span>
-                </label>
-                <div className="grid grid-cols-2 gap-4">
-                  <button
-                    type="button"
-                    onClick={() => setSelectedTeam('Cairo')}
-                    className={`p-4 rounded-2xl border text-center transition-all cursor-pointer flex flex-col items-center justify-center gap-2 ${
-                      selectedTeam === 'Cairo'
-                        ? 'bg-gradient-to-b from-[#0057FF] to-[#001F3F] border-[#00A8FF] shadow-lg shadow-[#0057FF]/50 text-white scale-[1.02]'
-                        : 'bg-black/60 border-[#0057FF]/30 text-slate-400 hover:border-[#0057FF] hover:text-white'
-                    }`}
-                  >
-                    <Users className="w-6 h-6 text-[#00A8FF]" />
-                    <span className="text-base font-extrabold">Cairo</span>
-                    <span className="text-[10px] text-slate-400 font-medium">
-                      Appears in Cairo Portal
-                    </span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setSelectedTeam('Cordoba')}
-                    className={`p-4 rounded-2xl border text-center transition-all cursor-pointer flex flex-col items-center justify-center gap-2 ${
-                      selectedTeam === 'Cordoba'
-                        ? 'bg-gradient-to-b from-[#0057FF] to-[#001F3F] border-[#00A8FF] shadow-lg shadow-[#0057FF]/50 text-white scale-[1.02]'
-                        : 'bg-black/60 border-[#0057FF]/30 text-slate-400 hover:border-[#0057FF] hover:text-white'
-                    }`}
-                  >
-                    <Users className="w-6 h-6 text-[#00A8FF]" />
-                    <span className="text-base font-extrabold">Cordoba</span>
-                    <span className="text-[10px] text-slate-400 font-medium">
-                      Appears in Cordoba Portal
-                    </span>
-                  </button>
-                </div>
-              </div>
-
-              {/* STEP 2: REGISTRATION FORM FIELDS */}
-              <div className="space-y-4 pt-2">
-                <div>
-                  <label className="block text-xs font-bold text-slate-300 mb-1.5 uppercase">
-                    Student Name <span className="text-rose-400">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Aarav Sharma"
-                    value={studentName}
-                    onChange={(e) => setStudentName(e.target.value)}
-                    className="w-full bg-black/70 border border-[#0057FF]/40 focus:border-[#00A8FF] rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none transition-all"
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {/* Class */}
-                  <div>
-                    <label className="block text-xs font-bold text-slate-300 mb-1.5 uppercase">
-                      Class <span className="text-rose-400">*</span>
-                    </label>
-                    <select
-                      value={studentClass}
-                      onChange={(e) => setStudentClass(e.target.value)}
-                      className="w-full bg-black/70 border border-[#0057FF]/40 focus:border-[#00A8FF] rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none transition-all"
-                    >
-                      {Array.from({ length: 12 }, (_, i) => `Class ${i + 1}`).map((c) => (
-                        <option key={c} value={c} className="bg-slate-900 text-white">
-                          {c}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Category */}
-                  <div>
-                    <label className="block text-xs font-bold text-slate-300 mb-1.5 uppercase">
-                      Category <span className="text-rose-400">*</span>
-                    </label>
-                    <select
-                      value={category}
-                      onChange={(e) => setCategory(e.target.value as Category)}
-                      className="w-full bg-black/70 border border-[#0057FF]/40 focus:border-[#00A8FF] rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none transition-all"
-                    >
-                      <option value="Sub Junior" className="bg-slate-900 text-white">
-                        Sub Junior
-                      </option>
-                      <option value="Junior" className="bg-slate-900 text-white">
-                        Junior
-                      </option>
-                      <option value="Senior" className="bg-slate-900 text-white">
-                        Senior
-                      </option>
-                    </select>
-                  </div>
-
-                  {/* Gender */}
-                  <div>
-                    <label className="block text-xs font-bold text-slate-300 mb-1.5 uppercase">
-                      Gender <span className="text-rose-400">*</span>
-                    </label>
-                    <div className="grid grid-cols-2 gap-2 p-1 bg-black/70 rounded-xl border border-[#0057FF]/40">
-                      <button
-                        type="button"
-                        onClick={() => setGender('Boys')}
-                        className={`py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
-                          gender === 'Boys'
-                            ? 'bg-[#0057FF] text-white shadow-md'
-                            : 'text-slate-400 hover:text-white'
-                        }`}
-                      >
-                        Boys
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setGender('Girls')}
-                        className={`py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
-                          gender === 'Girls'
-                            ? 'bg-[#0057FF] text-white shadow-md'
-                            : 'text-slate-400 hover:text-white'
-                        }`}
-                      >
-                        Girls
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Competition Name */}
-                <div>
-                  <label className="block text-xs font-bold text-slate-300 mb-1.5 uppercase">
-                    Competition Name <span className="text-rose-400">*</span>
-                  </label>
-                  <select
-                    value={competitionName}
-                    onChange={(e) => setCompetitionName(e.target.value)}
-                    className="w-full bg-black/70 border border-[#0057FF]/40 focus:border-[#00A8FF] rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none transition-all mb-2"
-                  >
-                    <option value="" disabled>
-                      -- Select Competition --
-                    </option>
-                    {programsList.map((prog) => (
-                      <option key={prog.id || prog.name} value={prog.name} className="bg-slate-900 text-white">
-                        {prog.name} {prog.category !== 'All' ? `(${prog.category})` : ''}
-                      </option>
-                    ))}
-                    <option value="custom" className="bg-slate-900 text-amber-300">
-                      + Enter Custom Competition Name
-                    </option>
-                  </select>
-
-                  {competitionName === 'custom' && (
-                    <input
-                      type="text"
-                      placeholder="Type custom competition name..."
-                      value={customCompInput}
-                      onChange={(e) => setCustomCompInput(e.target.value)}
-                      className="w-full bg-black/70 border border-[#00A8FF] rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none transition-all"
-                    />
-                  )}
-                </div>
-              </div>
-
-              {/* Submit Save Button */}
-              <button
-                type="submit"
-                disabled={saving}
-                className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-[#0057FF] via-[#00A8FF] to-[#0057FF] hover:from-[#00A8FF] hover:to-[#0057FF] text-white text-xs font-extrabold uppercase tracking-widest shadow-xl shadow-[#0057FF]/40 transition-all cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
-              >
-                <Check className="w-4 h-4" />
-                <span>{saving ? 'Saving Participant...' : 'Save Participant Record'}</span>
-              </button>
-            </form>
-          </motion.div>
-        )}
+            <Edit2 className="w-4 h-4" />
+            <span>Settings</span>
+          </button>
+        </div>
 
         {/* TAB 2: MANAGE ALL PARTICIPANTS TABLE */}
         {activeTab === 'roster' && (
@@ -851,6 +624,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                   className="bg-black/70 border border-[#0057FF]/40 rounded-xl px-3 py-2 text-xs text-white focus:outline-none"
                 >
                   <option value="All">All Teams</option>
+                  <option value={settings.teamAName}>{settings.teamAName} Only</option>
+                  <option value={settings.teamBName}>{settings.teamBName} Only</option>
                   <option value="Cairo">Cairo Only</option>
                   <option value="Cordoba">Cordoba Only</option>
                 </select>
@@ -884,69 +659,83 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                       <th className="py-3.5 px-4">Class</th>
                       <th className="py-3.5 px-4">Category</th>
                       <th className="py-3.5 px-4">Gender</th>
-                      <th className="py-3.5 px-4">Competition</th>
-                      <th className="py-3.5 px-4">Assign Competition</th>
+                      <th className="py-3.5 px-4">Assigned Programs</th>
                       <th className="py-3.5 px-4 text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#0057FF]/15">
                     {filteredRoster.length === 0 ? (
                       <tr>
-                        <td colSpan={9} className="py-12 text-center text-slate-400">
+                        <td colSpan={8} className="py-12 text-center text-slate-400">
                           No participants found matching the selected filters.
                         </td>
                       </tr>
                     ) : (
                       filteredRoster.map((p, idx) => (
-                        <tr key={p.id} className="hover:bg-[#0057FF]/10 transition-colors">
-                          <td className="py-3.5 px-4 font-mono font-bold text-slate-500">
-                            {idx + 1}
-                          </td>
-                          <td className="py-3.5 px-4 font-bold text-white">{p.studentName}</td>
-                          <td className="py-3.5 px-4">
-                            <span
-                              className={`inline-block px-2.5 py-0.5 rounded-md text-[10px] font-extrabold uppercase border ${
-                                p.team === 'Cairo'
-                                  ? 'bg-[#0057FF]/30 text-[#00A8FF] border-[#0057FF]'
-                                  : 'bg-emerald-950/40 text-emerald-300 border-emerald-500/30'
-                              }`}
-                            >
-                              {p.team}
-                            </span>
-                          </td>
-                          <td className="py-3.5 px-4 text-slate-300">{p.class}</td>
-                          <td className="py-3.5 px-4">{p.category}</td>
-                          <td className="py-3.5 px-4">{p.gender}</td>
-                          <td className="py-3.5 px-4 font-bold text-[#00A8FF]">
-                            {p.competitionName}
-                          </td>
-                          <td className="py-3.5 px-4 min-w-[220px]">
-                            <AssignCompetitionCell
-                              participant={p}
-                              allPrograms={programsList}
-                              onAssign={assignCompetitionToParticipant}
-                              onRemove={removeCompetitionFromParticipant}
-                            />
-                          </td>
-                          <td className="py-3.5 px-4 text-right">
-                            <div className="inline-flex items-center gap-2">
-                              <button
-                                onClick={() => setEditingParticipant(p)}
-                                className="p-1.5 rounded-lg bg-[#0057FF]/20 text-[#00A8FF] hover:bg-[#0057FF] hover:text-white transition-all cursor-pointer"
-                                title="Edit Student"
+                        <React.Fragment key={p.id}>
+                          <tr
+                            className="hover:bg-[#0057FF]/10 transition-colors cursor-pointer"
+                            onClick={() => setExpandedStudentId(expandedStudentId === p.id ? null : p.id)}
+                          >
+                            <td className="py-3.5 px-4 font-mono font-bold text-slate-500">
+                              {idx + 1}
+                            </td>
+                            <td className="py-3.5 px-4 font-bold text-white">{p.studentName}</td>
+                            <td className="py-3.5 px-4">
+                              <span
+                                className={`inline-block px-2.5 py-0.5 rounded-md text-[10px] font-extrabold uppercase border ${
+                                  p.team === settings.teamAName || p.team === 'Cairo'
+                                    ? 'bg-[#0057FF]/30 text-[#00A8FF] border-[#0057FF]'
+                                    : 'bg-emerald-950/40 text-emerald-300 border-emerald-500/30'
+                                }`}
                               >
-                                <Edit2 className="w-3.5 h-3.5" />
-                              </button>
-                              <button
-                                onClick={() => handleDelete(p.id, p.studentName)}
-                                className="p-1.5 rounded-lg bg-rose-950/40 text-rose-400 hover:bg-rose-900 hover:text-white transition-all cursor-pointer"
-                                title="Delete Student"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
+                                {p.team}
+                              </span>
+                            </td>
+                            <td className="py-3.5 px-4 text-slate-300">{p.class}</td>
+                            <td className="py-3.5 px-4">{p.category}</td>
+                            <td className="py-3.5 px-4">{p.gender}</td>
+                            <td className="py-3.5 px-4 font-bold text-slate-400">
+                              {p.assignedCompetitions?.length || 0} Programs
+                            </td>
+                            <td className="py-3.5 px-4 text-right">
+                              <div className="inline-flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                                <button
+                                  onClick={() => setEditingParticipant(p)}
+                                  className="p-1.5 rounded-lg bg-[#0057FF]/20 text-[#00A8FF] hover:bg-[#0057FF] hover:text-white transition-all cursor-pointer"
+                                  title="Edit Student"
+                                >
+                                  <Edit2 className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  onClick={() => handleDelete(p.id, p.studentName)}
+                                  className="p-1.5 rounded-lg bg-rose-950/40 text-rose-400 hover:bg-rose-900 hover:text-white transition-all cursor-pointer"
+                                  title="Delete Student"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+
+                          {expandedStudentId === p.id && (
+                            <tr className="bg-[#001F3F]/50">
+                              <td colSpan={8} className="px-4 py-4">
+                                <div className="max-w-3xl mx-auto border border-[#0057FF]/20 rounded-2xl p-4 bg-black/40">
+                                  <h4 className="text-[#00A8FF] text-xs font-bold uppercase tracking-wider mb-3">
+                                    Assigned Competitions
+                                  </h4>
+                                  <AssignCompetitionCell
+                                    participant={p}
+                                    allPrograms={programsList}
+                                    onAssign={assignCompetitionToParticipant}
+                                    onRemove={removeCompetitionFromParticipant}
+                                  />
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </React.Fragment>
                       ))
                     )}
                   </tbody>
@@ -1100,15 +889,13 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                             <h4 className="text-sm font-extrabold text-white group-hover:text-[#00A8FF] transition-colors">
                               {program.name}
                             </h4>
-                            {isCustom && (
-                              <button
-                                onClick={() => handleDeleteProgram(program.id, program.name)}
-                                className="text-slate-500 hover:text-rose-400 transition-colors p-1 cursor-pointer"
-                                title="Delete Custom Program"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            )}
+                            <button
+                              onClick={() => handleDeleteProgram(program.id, program.name)}
+                              className="text-rose-400/50 hover:text-rose-400 transition-colors p-1.5 rounded-lg hover:bg-rose-950/30 cursor-pointer"
+                              title="Delete Program"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
                           </div>
 
                           <div className="flex flex-wrap gap-1.5 mb-3">
@@ -1175,7 +962,9 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                     onChange={(e) => setPdfTeam(e.target.value as Team | 'All')}
                     className="w-full bg-black/70 border border-[#0057FF]/40 focus:border-[#00A8FF] rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none"
                   >
-                    <option value="All">All Teams (Cairo & Cordoba)</option>
+                    <option value="All">All Teams ({settings.teamAName} & {settings.teamBName})</option>
+                    <option value={settings.teamAName}>{settings.teamAName} Only</option>
+                    <option value={settings.teamBName}>{settings.teamBName} Only</option>
                     <option value="Cairo">Cairo Only</option>
                     <option value="Cordoba">Cordoba Only</option>
                   </select>
@@ -1279,6 +1068,88 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           </motion.div>
         )}
 
+        {/* TAB 5: APP SETTINGS */}
+        {activeTab === 'settings' && (
+          <motion.div
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+            className="p-6 md:p-8 rounded-3xl bg-[#001F3F]/30 border border-[#0057FF]/40 backdrop-blur-2xl shadow-2xl max-w-3xl mx-auto"
+          >
+            <div className="flex items-center gap-3 mb-6 pb-4 border-b border-[#0057FF]/30">
+              <div className="p-2.5 rounded-xl bg-[#0057FF]/30 text-[#00A8FF]">
+                <Edit2 className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-white uppercase">APP SETTINGS</h3>
+                <p className="text-xs text-slate-400">
+                  Update general application names and team designations
+                </p>
+              </div>
+            </div>
+
+            {settingsSuccess && (
+              <div className="mb-6 p-4 rounded-2xl bg-emerald-950/60 border border-emerald-500/40 text-emerald-300 text-xs flex items-center gap-3">
+                <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+                <span className="font-semibold">{settingsSuccess}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleUpdateSettings} className="space-y-5">
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-1.5 uppercase">
+                  Application Name <span className="text-rose-400">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editingAppName}
+                  onChange={(e) => setEditingAppName(e.target.value)}
+                  className="w-full bg-black/70 border border-[#0057FF]/40 focus:border-[#00A8FF] rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none transition-all"
+                />
+                <p className="text-[10px] text-slate-400 mt-1.5 ml-1">Changes the main title of the app in header and footer.</p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                <div>
+                  <label className="block text-xs font-bold text-slate-300 mb-1.5 uppercase">
+                    Team A Name <span className="text-rose-400">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={editingTeamA}
+                    onChange={(e) => setEditingTeamA(e.target.value)}
+                    className="w-full bg-black/70 border border-[#0057FF]/40 focus:border-[#00A8FF] rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-300 mb-1.5 uppercase">
+                    Team B Name <span className="text-rose-400">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={editingTeamB}
+                    onChange={(e) => setEditingTeamB(e.target.value)}
+                    className="w-full bg-black/70 border border-[#0057FF]/40 focus:border-[#00A8FF] rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none transition-all"
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={settingsSaving}
+                className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-[#0057FF] via-[#00A8FF] to-[#0057FF] hover:from-[#00A8FF] hover:to-[#0057FF] text-white text-xs font-extrabold uppercase tracking-widest shadow-xl shadow-[#0057FF]/40 transition-all cursor-pointer flex items-center justify-center gap-2 mt-6 disabled:opacity-50"
+              >
+                <Check className="w-4 h-4" />
+                <span>{settingsSaving ? 'Saving...' : 'Save Settings'}</span>
+              </button>
+            </form>
+          </motion.div>
+        )}
+
         {/* EDIT PARTICIPANT MODAL */}
         {editingParticipant && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
@@ -1323,6 +1194,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                       }
                       className="w-full bg-black/70 border border-[#0057FF]/40 rounded-xl px-3 py-2 text-xs text-white"
                     >
+                      <option value={settings.teamAName}>{settings.teamAName}</option>
+                      <option value={settings.teamBName}>{settings.teamBName}</option>
                       <option value="Cairo">Cairo</option>
                       <option value="Cordoba">Cordoba</option>
                     </select>
@@ -1420,6 +1293,16 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
             </div>
           </div>
         )}
+
+      {selectedProfileParticipant && (
+        <ParticipantProfileModal
+          participant={selectedProfileParticipant}
+          allPrograms={programsList}
+          onClose={() => setSelectedProfileParticipant(null)}
+          onAssign={assignCompetitionToParticipant}
+          onRemove={removeCompetitionFromParticipant}
+        />
+      )}
       </div>
     </div>
   );

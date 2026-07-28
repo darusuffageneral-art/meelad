@@ -2,12 +2,15 @@ import React from 'react';
 import { ViewMode } from '../types';
 import { Users, ShieldCheck, Sparkles, Award, ArrowRight, Layers, FileText, CheckCircle, MapPin, Lock, UserCheck } from 'lucide-react';
 import { motion } from 'motion/react';
+import { useSettings } from '../context/SettingsContext';
 
 interface HeroLandingProps {
   onNavigate: (view: ViewMode) => void;
 }
 
 export const HeroLanding: React.FC<HeroLandingProps> = ({ onNavigate }) => {
+  const settings = useSettings();
+
   return (
     <div className="relative min-h-[calc(100vh-65px)] flex flex-col justify-center items-center px-4 lg:px-8 py-10 bg-black overflow-hidden">
       {/* Background Ambient Glow Effects */}
@@ -46,7 +49,7 @@ export const HeroLanding: React.FC<HeroLandingProps> = ({ onNavigate }) => {
           </div>
 
           <h1 className="text-3xl sm:text-5xl font-black text-white uppercase tracking-tight leading-tight">
-            SPRING MEELAD ART FEST
+            {settings.appName}
           </h1>
           <p className="text-sm md:text-base text-slate-300 max-w-xl mx-auto mt-2 font-medium">
             Kammusufi Suni Centre Madrasa, Theyyottuchira — Official real-time portal for managing participants, categories, stage attendance, and competition results.
@@ -78,15 +81,15 @@ export const HeroLanding: React.FC<HeroLandingProps> = ({ onNavigate }) => {
                 </span>
               </div>
               <h2 className="text-xl sm:text-2xl font-black text-white group-hover:text-[#00A8FF] transition-colors mb-2">
-                Cairo Portal
+                {settings.teamAName} Portal
               </h2>
               <p className="text-xs text-slate-300 max-w-md leading-relaxed">
-                Access complete rosters for Cairo team students using password authentication (<code className="text-[#00A8FF]">cairo123</code>).
+                Access complete rosters for {settings.teamAName} team students using password authentication (<code className="text-[#00A8FF]">cairo123</code>).
               </p>
             </div>
 
             <div className="mt-6 flex items-center gap-2 text-xs font-bold text-[#00A8FF] group-hover:translate-x-1.5 transition-transform">
-              <span>Explore Cairo Roster</span>
+              <span>Explore {settings.teamAName} Roster</span>
               <ArrowRight className="w-4 h-4" />
             </div>
           </motion.div>
@@ -114,15 +117,15 @@ export const HeroLanding: React.FC<HeroLandingProps> = ({ onNavigate }) => {
                 </span>
               </div>
               <h2 className="text-xl sm:text-2xl font-black text-white group-hover:text-[#00A8FF] transition-colors mb-2">
-                Cordoba Portal
+                {settings.teamBName} Portal
               </h2>
               <p className="text-xs text-slate-300 max-w-md leading-relaxed">
-                Access complete rosters for Cordoba team students using password authentication (<code className="text-[#00A8FF]">cordoba123</code>).
+                Access complete rosters for {settings.teamBName} team students using password authentication (<code className="text-[#00A8FF]">cordoba123</code>).
               </p>
             </div>
 
             <div className="mt-6 flex items-center gap-2 text-xs font-bold text-[#00A8FF] group-hover:translate-x-1.5 transition-transform">
-              <span>Explore Cordoba Roster</span>
+              <span>Explore {settings.teamBName} Roster</span>
               <ArrowRight className="w-4 h-4" />
             </div>
           </motion.div>

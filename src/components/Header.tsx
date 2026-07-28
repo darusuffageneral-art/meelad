@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ViewMode } from '../types';
 import { Home, Users, Shield, LogOut, Lock, UserCheck, Menu, X } from 'lucide-react';
+import { useSettings } from '../context/SettingsContext';
 
 interface HeaderProps {
   currentView: ViewMode;
@@ -16,6 +17,7 @@ export const Header: React.FC<HeaderProps> = ({
   onAdminLogout
 }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const settings = useSettings();
 
   const handleNav = (view: ViewMode) => {
     onNavigate(view);
@@ -37,7 +39,7 @@ export const Header: React.FC<HeaderProps> = ({
               </span>
             </div>
             <h1 className="text-xs sm:text-sm md:text-base font-black tracking-wider text-white group-hover:text-[#00A8FF] transition-colors uppercase leading-snug">
-              SPRING MEELAD ART FEST
+              {settings.appName}
             </h1>
             <p className="text-[8px] sm:text-[10px] md:text-xs text-slate-300 font-semibold tracking-widest flex items-center gap-1">
               <span className="text-[#00A8FF] font-bold">THEYYOTTUCHIRA</span>
@@ -82,7 +84,7 @@ export const Header: React.FC<HeaderProps> = ({
               }`}
             >
               <Lock className="w-3 h-3 text-[#00A8FF] shrink-0" />
-              <span>Cairo</span>
+              <span>{settings.teamAName}</span>
             </button>
 
             <button
@@ -94,7 +96,7 @@ export const Header: React.FC<HeaderProps> = ({
               }`}
             >
               <Lock className="w-3 h-3 text-[#00A8FF] shrink-0" />
-              <span>Cordoba</span>
+              <span>{settings.teamBName}</span>
             </button>
 
             <button
@@ -182,7 +184,7 @@ export const Header: React.FC<HeaderProps> = ({
               }`}
             >
               <Lock className="w-3.5 h-3.5 text-sky-400" />
-              <span>Cairo Team</span>
+              <span>{settings.teamAName} Team</span>
             </button>
 
             <button
@@ -194,7 +196,7 @@ export const Header: React.FC<HeaderProps> = ({
               }`}
             >
               <Lock className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Cordoba Team</span>
+              <span>{settings.teamBName} Team</span>
             </button>
           </div>
 
